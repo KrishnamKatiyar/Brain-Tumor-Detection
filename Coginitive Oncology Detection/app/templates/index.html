@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Detection</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Brain Tumor Detection&nbsp;&nbsp;</h1>
+    </header>
+    <div class="container">
+        <h2>Upload an MRI Image</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" id="imageInput" name="image" accept="image/*" required>
+            <button type="submit" class="upload-btn">Detect Tumor</button>
+        </form>
+        <img id="uploadedImage" src="" alt="Uploaded Image" style="display: none;">
+        <div class="result" id="result"></div>
+    </div>
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const imageInput = document.getElementById('imageInput');
+        const uploadedImage = document.getElementById('uploadedImage');
+        const result = document.getElementById('result');
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            result.textContent = 'Processing...';
+
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    uploadedImage.src = URL.createObjectURL(imageInput.files[0]);
+                    uploadedImage.style.display = 'block';
+                    result.textContent = `Prediction: ${data.prediction}`;
+                } else {
+                    result.textContent = 'Error: Could not process the image.';
+                }
+            } catch (err) {
+                console.error(err);
+                result.textContent = 'Error: Something went wrong.';
+            }
+        });
+    </script>
+</body>
+</html>

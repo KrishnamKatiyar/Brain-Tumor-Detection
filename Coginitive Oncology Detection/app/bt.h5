@@ -1,0 +1,127 @@
+# Import necessary libraries
+import os
+import numpy as np
+import cv2
+from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, Input
+import matplotlib.pyplot as plt
+from keras.utils import to_categorical
+from tensorflow.keras.preprocessing import image
+
+# Define labels and image size
+labels = ['glioma_tumor', 'meningioma_tumor', 'no_tumor', 'pituitary_tumor']
+image_size = 150
+
+# Load and preprocess the data
+X_data, Y_data = [], []
+
+for label in labels:
+    folder_path = os.path.join('C:/Users/krish/OneDrive/Desktop/Coginitive Oncology Detection/Training', label)
+    for file in os.listdir(folder_path):
+        img = cv2.imread(os.path.join(folder_path, file))
+        img = cv2.resize(img, (image_size, image_size))
+        X_data.append(img)
+        Y_data.append(label)
+
+for label in labels:
+    folder_path = os.path.join('C:/Users/krish/OneDrive/Desktop/Coginitive Oncology Detection/Testing', label)
+    for file in os.listdir(folder_path):
+        img = cv2.imread(os.path.join(folder_path, file))
+        img = cv2.resize(img, (image_size, image_size))
+        X_data.append(img)
+        Y_data.append(label)
+
+# Convert data to numpy arrays and normalize
+X_data = np.array(X_data) / 255.0  # Normalize pixel values to [0, 1]
+Y_data = np.array(Y_data)
+
+# Shuffle and split the data
+X_data, Y_data = shuffle(X_data, Y_data, random_state=101)
+X_train, X_test, y_train, y_test = train_test_split(X_data, Y_data, test_size=0.1, random_state=101)
+
+# Convert labels to categorical format
+y_train = to_categorical([labels.index(i) for i in y_train], num_classes=len(labels))
+y_test = to_categorical([labels.index(i) for i in y_test], num_classes=len(labels))
+
+# Build the model
+model = Sequential([
+    Input(shape=(150, 150, 3)),
+    Conv2D(32, (3, 3), activation='relu'),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.3),
+
+    Conv2D(64, (3, 3), activation='relu'),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.3),
+
+    Conv2D(128, (3, 3), activation='relu'),
+    Conv2D(128, (3, 3), activation='relu'),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.3),
+
+    Conv2D(128, (3, 3), activation='relu'),
+    Conv2D(256, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Dropout(0.3),
+
+    Flatten(),
+    Dense(512, activation='relu'),
+    Dense(512, activation='relu'),
+    Dropout(0.3),
+    Dense(len(labels), activation='softmax')  # Output layer with softmax activation
+])
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.summary()
+
+# Train the model
+history = model.fit(X_train, y_train, epochs=20, validation_split=0.1)
+
+# Plot training and validation accuracy
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+epochs = range(len(acc))
+plt.figure(figsize=(14, 7))
+plt.plot(epochs, acc, 'r', label="Training Accuracy")
+plt.plot(epochs, val_acc, 'b', label="Validation Accuracy")
+plt.legend(loc='upper left')
+plt.title('Training and Validation Accuracy')
+plt.show()
+
+# Plot training and validation loss
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+plt.figure(figsize=(14, 7))
+plt.plot(epochs, loss, 'r', label="Training Loss")
+plt.plot(epochs, val_loss, 'b', label="Validation Loss")
+plt.legend(loc='upper left')
+plt.title('Training and Validation Loss')
+plt.show()
+
+# Save the model
+model.save('braintumor.h5')
+
+# Prediction on a single image
+test_img_path = 'C:/Users/krish/OneDrive/Desktop/Coginitive Oncology Detection/Testing/meningioma_tumor/image(11).jpg'
+img = cv2.imread(test_img_path)
+img = cv2.resize(img, (150, 150))
+img_array = np.array(img) / 255.0  # Normalize
+img_array = img_array.reshape(1, 150, 150, 3)
+
+# Display the test image
+img_display = image.load_img(test_img_path)
+plt.imshow(img_display, interpolation='nearest')
+plt.title("Test Image")
+plt.axis('off')
+plt.show()
+
+# Make prediction
+prediction = model.predict(img_array)
+confidence = prediction.max()
+predicted_class = labels[prediction.argmax()]
+print(f"Predicted Class: {predicted_class}, Confidence: {confidence:.2f}")
